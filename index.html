@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hello World!</title>
+    <script>
+            var fs = require('fs');
+
+    fs.watch('./target', [], function(event, filename) {
+    if (location && /\.js$/.test(filename))
+    location.reload(false);
+    });
+    fs.watch('index.html', [], function(event, filename) {
+    if (location && /\.html$/.test(filename))
+    location.reload(false);
+    });
+    </script>
+    <script>
+    // Stolen from LightTable sources
+
+    //give it a little bit to paint before loading.
+    setTimeout(function() {
+      var script = document.createElement("script");
+      script.type = "text/javascript";
+      script.async = false;
+      script.src= "target/main.js"
+      document.body.appendChild(script);
+      script.onload = function() {
+        try {
+          ant.core.main();
+        } catch (e) {
+          console.error(e);
+          console.log(e.stack);
+        }
+      }
+    }, 40);
+    </script>
+  </head>
+  <body>
+    <canvas id="canvas" width="600" height="600"></canvas>
+  </body>
+</html>
