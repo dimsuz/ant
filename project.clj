@@ -2,6 +2,8 @@
   :plugins [[lein-cljsbuild "1.0.2"]]
   :dependencies [[org.clojure/clojurescript "0.0-2173"]
                  [rm-hull/monet "0.1.10"]]
+  :profiles {:dev {:plugins [[com.cemerick/austin "0.1.4"]]}}
+
   :cljsbuild {
     :builds [{
         ; The path to the top-level ClojureScript source directory:
