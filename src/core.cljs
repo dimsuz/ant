@@ -5,6 +5,11 @@
 
 (def field-rect {:x 10 :y 10 :w 500 :h 500})
 (def cell-count 5)
+(defn create-image []
+  (let [img (js/Image.)]
+    (set! (.-src img) "ant.png")
+    img))
+(def ant-img (create-image))
 
 (defn create-canvas []
   (let [canvas-dom (.getElementById js/document "canvas")]
@@ -26,8 +31,13 @@
   (doseq [y (range 0 cell-count)]
     (doseq [x (range 0 cell-count)]
       (when (= [x y] (:active @state))
-        (canvas/fill-style ctx "#0f0")
-        (canvas/fill-rect ctx (cell-rect x y)))
+        (let [{rx :x ry :y w :w h :h :as r} (cell-rect x y)]
+          (canvas/save ctx)
+          (canvas/translate ctx (+ rx (/ w 2)) (+ ry (/ h 2)))
+          (canvas/rotate ctx (/ (* (:rot @state) (.-PI js/Math)) 180))
+          (canvas/translate ctx (- 0 (/ w 2)) (- 0 (/ h 2)))
+          (canvas/draw-image ctx ant-img {:x 0 :y 0 :w w :h h})
+          (canvas/restore ctx)))
       (canvas/stroke-rect ctx (cell-rect x y)))))
 
 (defn next-cell [[x y]]
@@ -37,7 +47,8 @@
       (if (< (inc y) cell-count) [0 (inc y)] [0 0]))))
 
 (defn update-field [state]
-  (swap! state assoc :active (next-cell (:active @state)))
+  ;(swap! state assoc :active (next-cell (:active @state)))
+  (swap! state assoc :rot (+ (:rot @state) 10))
   state
   )
 
@@ -46,11 +57,11 @@
   (js/setTimeout (fn []
                    (update-field state)
                    (update state))
-                 300)
+                 30)
   )
 (defn main []
   (let [mc (create-canvas)
-        state (atom {:active [0 0]})]
+        state (atom {:active [2 2] :rot 0.0})]
     (canvas/add-entity mc :background
                        (canvas/entity field-rect
                                       nil                       ; update function
