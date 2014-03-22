@@ -16,12 +16,12 @@
         y2 (+ y1 h)]
     {:x (- x2 350) :y (- y2 10)}))
 
-(def colors-map {:grid "#c8c8c8" :off "#e6e6fa" :on "#656bff"})
+(def colors-map {:grid "#c8c8c8" :c1 "#e6e6fa" :c2 "#656bff"})
 
 (defn create-field [size]
   (into [] (for [x (range 0 size)]
              (into [] (for [y (range 0 size)]
-                        :off)))))
+                        :c1)))))
 
 (defn create-canvas []
   (let [canvas-dom (.getElementById js/document "canvas")]
@@ -46,15 +46,15 @@
   (keep-indexed #(when (pred %2) %1) coll))
 
 (defn filled-cells [field]
-  (let [row-idxs (positions #(some #{:on} %) field)]
+  (let [row-idxs (positions #(some #{:c2} %) field)]
     (mapcat (fn [row-idx]
-              (map (fn [cell-idx] [row-idx cell-idx]) (positions #{:on} (get field row-idx)))) row-idxs))
+              (map (fn [cell-idx] [row-idx cell-idx]) (positions #{:c2} (get field row-idx)))) row-idxs))
   )
 
 (defn draw-field [ctx state]
   (canvas/stroke-width ctx 0.5)
   (doseq [pos (filled-cells (:field @state))]
-    (canvas/fill-style ctx (:on colors-map))
+    (canvas/fill-style ctx (:c2 colors-map))
     (canvas/fill-rect ctx (cell-rect pos))
     )
   (let [pos (:pos @state)
@@ -70,14 +70,14 @@
   (canvas/text ctx (merge {:text (:step @state)} step-counter-pos)))
 
 (defn flip-color [pos field]
-  (update-in field pos #(if (= :on %) :off :on)))
+  (update-in field pos #(if (= :c2 %) :c1 :c2)))
 
 (defn turn-right [angle]
   (mod (+ angle 90) 360))
 (defn turn-left [angle]
   (mod (- angle 90) 360))
 
-(def turn-fn-map {:off turn-right :on turn-left})
+(def turn-fn-map {:c1 turn-right :c2 turn-left})
 
 (defn move-forward [pos rot]
   (cond
