@@ -3,13 +3,18 @@
 
 (enable-console-print!)
 
-(def field-rect {:x 10 :y 10 :w 500 :h 500})
-(def cell-count 55)
+(def field-rect {:x 10 :y 10 :w 790 :h 790})
+(def cell-count 45)
 (defn create-image []
   (let [img (js/Image.)]
     (set! (.-src img) "ant.png")
     img))
 (def ant-img (create-image))
+(def step-counter-pos
+  (let [{x1 :x y1 :y w :w h :h} field-rect
+        x2 (+ x1 w)
+        y2 (+ y1 h)]
+    {:x (- x2 100) :y (- y2 10)}))
 
 (def colors-map {:off "#fff" :on "#888"})
 
@@ -51,7 +56,10 @@
     (canvas/rotate ctx (/ (* (:rot @state) (.-PI js/Math)) 180))
     (canvas/translate ctx (- 0 (/ w 2)) (- 0 (/ h 2)))
     (canvas/draw-image ctx ant-img {:x 0 :y 0 :w w :h h})
-    (canvas/restore ctx)))
+    (canvas/restore ctx))
+  (canvas/font-style ctx "50px Arial")
+  (canvas/fill-style ctx "rgba(0,0,0,0.7")
+  (canvas/text ctx (merge {:text (:step @state)} step-counter-pos)))
 
 (defn flip-color [pos field]
   (update-in field pos #(if (= :on %) :off :on)))
@@ -70,13 +78,14 @@
    (= rot 180) [(first pos) (inc (second pos))]
    (= rot 270) [(dec (first pos)) (second pos)]))
 
-(defn step-ant [{:keys [rot field pos] :as state}]
+(defn step-ant [{:keys [rot field pos step] :as state}]
   (let [rot-fn ((get-in field pos) turn-fn-map)
         new-rot (rot-fn rot)]
     (assoc state
       :field (flip-color pos field)
       :pos (move-forward pos new-rot)
-      :rot new-rot))
+      :rot new-rot
+      :step (inc step)))
   )
 
 (defn update-field [state]
@@ -85,27 +94,29 @@
   state
   )
 
-;;; fixme use core.async
-(defn update [state]
-  (js/setTimeout (fn []
-                   (update-field state)
-                   (update state))
-                 3)
+(defn draw-grid [ctx]
+  (let [{x1 :x y1 :y w :w h :h} field-rect
+        x2 (+ x1 w)
+        y2 (+ y1 h)]
+    (doseq [x (range x1 x2 (int (/ w cell-count)))]
+      (canvas/move-to ctx x y1)
+      (canvas/line-to ctx x y2))
+    (doseq [y (range y1 y2 (int (/ w cell-count)))]
+      (canvas/move-to ctx x1 y)
+      (canvas/line-to ctx x2 y))
+    (canvas/stroke-width ctx 0.25)
+    (canvas/stroke-style ctx "#000")
+    (canvas/stroke ctx))
+
   )
+
 (defn main []
   (let [mc (create-canvas)
         init-pos [(int (/ cell-count 2)) (int (/ cell-count 2))]
-        state (atom {:pos init-pos :rot 270 :field (create-field cell-count)})]
-    (canvas/add-entity mc :background
-                       (canvas/entity field-rect
-                                      nil                       ; update function
-                                      (fn [ctx val]
-                                        (-> ctx
-                                            (canvas/fill-style "#ded")
-                                            (canvas/fill-rect val)))))
+        state (atom {:pos init-pos :rot 270 :field (create-field cell-count) :step 1})]
+    ;; (canvas/add-entity mc :grid (canvas/entity nil nil draw-grid))
     (canvas/add-entity mc :field
                        (canvas/entity state
-                                      nil
+                                      update-field
                                       draw-field))
-    (update state)
     ))
