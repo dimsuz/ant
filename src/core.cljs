@@ -4,7 +4,7 @@
 (enable-console-print!)
 
 (def field-rect {:x 0 :y 0 :w 1000 :h 1000})
-(def cell-count 120)
+(def cell-count 50)
 (defn create-image []
   (let [img (js/Image.)]
     (set! (.-src img) "ant.png")
@@ -16,7 +16,7 @@
         y2 (+ y1 h)]
     {:x (- x2 350) :y (- y2 10)}))
 
-(def colors-map {:grid "#c8c8c8" :c1 "#e6e6fa" :c2 "#656bff"})
+(def colors-map {:grid "#c8c8c8" :c1 "#e6e6fa" :c2 "#656bff" :c3 "#d25d5d" :c4 "#79b60e"})
 
 (defn create-field [size]
   (into [] (for [x (range 0 size)]
@@ -46,15 +46,16 @@
   (keep-indexed #(when (pred %2) %1) coll))
 
 (defn filled-cells [field]
-  (let [row-idxs (positions #(some #{:c2} %) field)]
+  (let [not-def-color? (fn [c] (not= :c1 c))
+        row-idxs (positions #(some not-def-color? %) field)]
     (mapcat (fn [row-idx]
-              (map (fn [cell-idx] [row-idx cell-idx]) (positions #{:c2} (get field row-idx)))) row-idxs))
+              (map (fn [cell-idx] [row-idx cell-idx]) (positions not-def-color? (get field row-idx)))) row-idxs))
   )
 
 (defn draw-field [ctx state]
   (canvas/stroke-width ctx 0.5)
   (doseq [pos (filled-cells (:field @state))]
-    (canvas/fill-style ctx (:c2 colors-map))
+    (canvas/fill-style ctx (cell-color pos (:field @state)))
     (canvas/fill-rect ctx (cell-rect pos))
     )
   (let [pos (:pos @state)
@@ -70,14 +71,18 @@
   (canvas/text ctx (merge {:text (:step @state)} step-counter-pos)))
 
 (defn flip-color [pos field]
-  (update-in field pos #(if (= :c2 %) :c1 :c2)))
+  (update-in field pos #(cond
+                         (= :c1 %) :c2
+                         (= :c2 %) :c3
+                         (= :c3 %) :c4
+                         (= :c4 %) :c1)))
 
 (defn turn-right [angle]
   (mod (+ angle 90) 360))
 (defn turn-left [angle]
   (mod (- angle 90) 360))
 
-(def turn-fn-map {:c1 turn-right :c2 turn-left})
+(def turn-fn-map {:c1 turn-left :c2 turn-left :c3 turn-right :c4 turn-right})
 
 (defn move-forward [pos rot]
   (cond
