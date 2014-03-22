@@ -61,6 +61,8 @@
 (defn turn-left [angle]
   (mod (- angle 90) 360))
 
+(def turn-fn-map {:off turn-right :on turn-left})
+
 (defn move-forward [pos rot]
   (cond
    (= rot 0) [(first pos) (dec (second pos))]
@@ -69,7 +71,7 @@
    (= rot 270) [(dec (first pos)) (second pos)]))
 
 (defn step-ant [{:keys [rot field pos] :as state}]
-  (let [rot-fn (if (= :off (get-in field pos)) turn-right turn-left)
+  (let [rot-fn ((get-in field pos) turn-fn-map)
         new-rot (rot-fn rot)]
     (assoc state
       :field (flip-color pos field)
