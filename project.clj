@@ -14,3 +14,4 @@
           :output-to "target/main.js"  ; default: target/cljsbuild-main.js
           :optimizations :simple
           :pretty-print true}}]})
+          ;:source-map "target/main.js.map"
