@@ -3,7 +3,7 @@
 
 (enable-console-print!)
 
-(def field-rect {:x 0 :y 0 :w 800 :h 800})
+(def field-rect {:x 0 :y 0 :w 1000 :h 1000})
 (def cell-count 120)
 (defn create-image []
   (let [img (js/Image.)]
