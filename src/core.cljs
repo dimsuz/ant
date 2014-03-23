@@ -3,18 +3,21 @@
 
 (enable-console-print!)
 
-(def field-rect {:x 0 :y 0 :w 1000 :h 1000})
-(def cell-count 50)
+(def field-rect {:x 0 :y 0 :w 500 :h 500})
+(def cell-count 10)
 (defn create-image []
   (let [img (js/Image.)]
     (set! (.-src img) "ant.png")
     img))
 (def ant-img (create-image))
+
 (def step-counter-pos
   (let [{x1 :x y1 :y w :w h :h} field-rect
         x2 (+ x1 w)
         y2 (+ y1 h)]
     {:x (- x2 350) :y (- y2 10)}))
+
+(def allow-wrap? false)
 
 (def colors-map {:grid "#c8c8c8" :c1 "#e6e6fa" :c2 "#656bff" :c3 "#d25d5d" :c4 "#79b60e"})
 
@@ -91,13 +94,21 @@
    (= rot 180) [(first pos) (inc (second pos))]
    (= rot 270) [(dec (first pos)) (second pos)]))
 
+(defn move-forward-wrapped [pos rot]
+  (map (fn [p] (cond
+                (neg? p) (dec cell-count)
+                (>= p cell-count) 0
+                :else p))
+       (move-forward pos rot)))
+
 (defn out-of-bounds? [pos]
   (or (some neg? pos) (some #(>= % cell-count) pos)))
 
 (defn step-ant [{:keys [rot field pos step] :as state}]
   (let [rot-fn ((get-in field pos) turn-fn-map)
+        move-fn (if allow-wrap? move-forward-wrapped move-forward)
         new-rot (rot-fn rot)
-        new-pos (move-forward pos new-rot)
+        new-pos (move-fn pos new-rot)
         finished? (out-of-bounds? new-pos)]
     (if finished?
       (assoc state :finished true)
