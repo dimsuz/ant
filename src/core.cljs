@@ -4,7 +4,7 @@
 (enable-console-print!)
 
 (def field-rect {:x 0 :y 0 :w 500 :h 500})
-(def cell-count 10)
+(def cell-count 50)
 (defn create-image []
   (let [img (js/Image.)]
     (set! (.-src img) "ant.png")
@@ -17,7 +17,7 @@
         y2 (+ y1 h)]
     {:x (- x2 350) :y (- y2 10)}))
 
-(def allow-wrap? false)
+(def allow-wrap? true)
 
 (def colors-map {:grid "#c8c8c8" :c1 "#e6e6fa" :c2 "#656bff" :c3 "#d25d5d" :c4 "#79b60e"})
 
@@ -55,26 +55,33 @@
               (map (fn [cell-idx] [row-idx cell-idx]) (positions not-def-color? (get field row-idx)))) row-idxs))
   )
 
+(defn draw-ant [ctx pos rot]
+  (let [{rx :x ry :y w :w h :h :as r} (cell-rect pos)]
+    (canvas/save ctx)
+    (canvas/translate ctx (+ rx (/ w 2)) (+ ry (/ h 2)))
+    (canvas/rotate ctx (/ (* rot (.-PI js/Math)) 180))
+    (canvas/translate ctx (- 0 (/ w 2)) (- 0 (/ h 2)))
+    (canvas/draw-image ctx ant-img {:x 0 :y 0 :w w :h h})
+    (canvas/restore ctx)))
+
 (defn draw-field [ctx state]
   (canvas/stroke-width ctx 0.5)
   (doseq [pos (filled-cells (:field @state))]
     (canvas/fill-style ctx (cell-color pos (:field @state)))
     (canvas/fill-rect ctx (cell-rect pos))
     )
-  (let [pos (:pos @state)
-        {rx :x ry :y w :w h :h :as r} (cell-rect pos)]
-    (canvas/save ctx)
-    (canvas/translate ctx (+ rx (/ w 2)) (+ ry (/ h 2)))
-    (canvas/rotate ctx (/ (* (:rot @state) (.-PI js/Math)) 180))
-    (canvas/translate ctx (- 0 (/ w 2)) (- 0 (/ h 2)))
-    (canvas/draw-image ctx ant-img {:x 0 :y 0 :w w :h h})
-    (canvas/restore ctx))
+  (doseq [ant (:ants @state)]
+    (draw-ant ctx (:pos ant) (:rot ant)))
   (canvas/font-style ctx "50px Arial")
   (canvas/fill-style ctx "#000")
   (canvas/text ctx (merge {:text (:step @state)} step-counter-pos)))
 
-(defn flip-color [pos field]
-  (update-in field pos #(cond
+(defn update-vals [map vals f]
+  (reduce #(update-in %1 %2 f) map vals)
+  )
+
+(defn flip-color [field pos-list]
+  (update-vals field pos-list #(cond
                          (= :c1 %) :c2
                          (= :c2 %) :c3
                          (= :c3 %) :c4
@@ -104,24 +111,25 @@
 (defn out-of-bounds? [pos]
   (or (some neg? pos) (some #(>= % cell-count) pos)))
 
-(defn step-ant [{:keys [rot field pos step] :as state}]
-  (let [rot-fn ((get-in field pos) turn-fn-map)
-        move-fn (if allow-wrap? move-forward-wrapped move-forward)
+(defn step-ant [ant field move-fn]
+  (let [{:keys [pos rot]} ant
+        rot-fn ((get-in field pos) turn-fn-map)
         new-rot (rot-fn rot)
-        new-pos (move-fn pos new-rot)
-        finished? (out-of-bounds? new-pos)]
-    (if finished?
-      (assoc state :finished true)
-      (assoc state
-        :field (flip-color pos field)
-        :pos new-pos
-        :rot new-rot
-        :step (inc step))))
+        new-pos (move-fn pos new-rot)]
+    ant
+    (assoc ant :pos new-pos :rot new-rot :finished (out-of-bounds? new-pos))
+    ))
+
+(defn step-ants [{:keys [field step] :as state}]
+  (let [move-fn (if allow-wrap? move-forward-wrapped move-forward)]
+    (assoc state
+      :field (flip-color field (map :pos (:ants state)))
+      :ants (map #(step-ant % field move-fn) (:ants state))
+      :step (inc step)))
   )
 
 (defn update-field [state]
-  (when (not (:finished @state))
-    (swap! state step-ant))
+  (swap! state step-ants)
   ;(swap! state assoc :rot (+ (:rot @state) 10))
   state
   )
@@ -151,7 +159,9 @@
 (defn ^:export main []
   (let [mc (create-canvas)
         init-pos [(int (/ cell-count 2)) (int (/ cell-count 2))]
-        state (atom {:pos init-pos :rot 270 :field (create-field cell-count) :step 1 :render-grid true})]
+        state (atom {:ants [{:pos init-pos :rot 270 :finished false}
+                            {:pos [30 30] :rot 270 :finished false}]
+                     :field (create-field cell-count) :step 1 :render-grid true})]
     (canvas/add-entity mc :field
                        (canvas/entity state
                                       update-field
